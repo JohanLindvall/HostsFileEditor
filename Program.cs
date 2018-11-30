@@ -35,6 +35,11 @@ namespace HostsFileEditor
         {
             var current = Read().ToList();
 
+            if (args.Length == 0)
+            {
+                Usage();
+            }
+
             for (var i = 0; i < args.Length; ++i)
             {
                 var arg = args[i];
@@ -42,9 +47,16 @@ namespace HostsFileEditor
 
                 if (string.Equals("list", arg, StringComparison.OrdinalIgnoreCase))
                 {
+                    var anything = false;
                     foreach (var line in current.Where(l => !IsCommentOrWhitespace(l)))
                     {
                         Console.WriteLine(line);
+                        anything = true;
+                    }
+
+                    if (!anything)
+                    {
+                        Console.WriteLine("Hosts file is empty.");
                     }
                 }
                 else if (string.Equals("remove", arg, StringComparison.OrdinalIgnoreCase) && !isLastArg)
@@ -78,14 +90,20 @@ namespace HostsFileEditor
                 }
                 else
                 {
-                    Console.WriteLine("Usage: ");
-                    Console.WriteLine("");
-                    Console.WriteLine("HostFile list - list entries in hosts file");
-                    Console.WriteLine("HostFile remove [name] - removes name from hosts file");
-                    Console.WriteLine("HostFile add [ip name] - adds ip and name to hosts file");
-                    Console.WriteLine("HostFile block [name] - adds 127.0.0.1 and name to hosts file");
+                    Usage();
                 }
             }
+        }
+
+        private static void Usage()
+        {
+            var processName = Process.GetCurrentProcess().ProcessName;
+            Console.WriteLine("Usage: ");
+            Console.WriteLine("");
+            Console.WriteLine($@"{processName} list - list entries in hosts file");
+            Console.WriteLine($@"{processName} remove [name] - removes name from hosts file");
+            Console.WriteLine($@"{processName} add [ip name] - adds ip and name to hosts file");
+            Console.WriteLine($@"{processName} block [name] - adds 127.0.0.1 and name to hosts file");
         }
 
         private static bool IsCommentOrWhitespace(string line) => line.StartsWith("#") || string.IsNullOrEmpty(line.Trim());
