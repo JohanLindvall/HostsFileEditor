@@ -21,6 +21,7 @@
 namespace HostsFileEditor
 {
     using System;
+    using System.ComponentModel;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
@@ -37,7 +38,7 @@ namespace HostsFileEditor
 
             if (args.Length == 0)
             {
-                Usage();
+                ListContents(current);
             }
 
             for (var i = 0; i < args.Length; ++i)
@@ -47,24 +48,14 @@ namespace HostsFileEditor
 
                 if (string.Equals("list", arg, StringComparison.OrdinalIgnoreCase))
                 {
-                    var anything = false;
-                    foreach (var line in current.Where(l => !IsCommentOrWhitespace(l)))
-                    {
-                        Console.WriteLine(line);
-                        anything = true;
-                    }
-
-                    if (!anything)
-                    {
-                        Console.WriteLine("Hosts file is empty.");
-                    }
+                    ListContents(current);
                 }
                 else if (string.Equals("remove", arg, StringComparison.OrdinalIgnoreCase) && !isLastArg)
                 {
                     while (i < args.Length - 1)
                     {
                         ++i;
-                        current = current.Where(line => !line.Split(' ').Last().Equals(args[i], StringComparison.OrdinalIgnoreCase)).ToList();
+                        current = current.Where(line => IsCommentOrWhitespace(line) || !line.Split(' ').Any(part => part.Equals(args[i], StringComparison.OrdinalIgnoreCase))).ToList();
                     }
 
                     Write(current);
@@ -95,12 +86,27 @@ namespace HostsFileEditor
             }
         }
 
+        private static void ListContents(List<string> current)
+        {
+            var anything = false;
+            foreach (var line in current.Where(l => !IsCommentOrWhitespace(l)))
+            {
+                Console.WriteLine(line);
+                anything = true;
+            }
+
+            if (!anything)
+            {
+                Console.WriteLine("Hosts file is empty.");
+            }
+        }
+
         private static void Usage()
         {
             var processName = Process.GetCurrentProcess().ProcessName;
             Console.WriteLine("Usage: ");
             Console.WriteLine("");
-            Console.WriteLine($@"{processName} list - list entries in hosts file");
+            Console.WriteLine($@"{processName} [list] - list entries in hosts file");
             Console.WriteLine($@"{processName} remove [name] - removes name from hosts file");
             Console.WriteLine($@"{processName} add [ip name] - adds ip and name to hosts file");
             Console.WriteLine($@"{processName} block [name] - adds 127.0.0.1 and name to hosts file");
@@ -135,21 +141,70 @@ namespace HostsFileEditor
 
         static void Write(IList<string> lines)
         {
-            if (!lines.SequenceEqual(Read()))
+            if (CheckDiffs(Read(), lines))
             {
-                if (!IsAdministrator())
-                {
-                    RelaunchAsAdministrator();
-                }
-                else
+                if (IsAdministrator())
                 {
                     File.WriteAllText(Filename, string.Join(Environment.NewLine, lines));
                 }
+                else
+                {
+                    try
+                    {
+                        RelaunchAsAdministrator();
+                    }
+                    catch (Win32Exception)
+                    {
+                        // Ignore
+                    }
+                }
             }
-            else
+        }
+
+        static bool CheckDiffs(IEnumerable<string> oldContents, IEnumerable<string> newContents)
+        {
+            var hasDiffs = false;
+            using (var oldEnumerator = oldContents.GetEnumerator())
             {
-                Console.WriteLine("No changes written.");
+                using (var newEnumerator = newContents.GetEnumerator())
+                {
+                    var oldValid = oldEnumerator.MoveNext();
+                    var newValid = newEnumerator.MoveNext();
+
+                    while (oldValid || newValid)
+                    {
+                        if (oldValid)
+                        {
+                            // ReSharper disable once PossibleNullReferenceException
+                            if (newValid && oldEnumerator.Current.Equals(newEnumerator.Current, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Equals
+                                oldValid = oldEnumerator.MoveNext();
+                                newValid = newEnumerator.MoveNext();
+                            }
+                            else
+                            {
+                                Console.WriteLine($@"Removing {oldEnumerator.Current}.");
+                                hasDiffs = true;
+                                oldValid = oldEnumerator.MoveNext();
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($@"Adding {newEnumerator.Current}.");
+                            hasDiffs = true;
+                            newValid = newEnumerator.MoveNext();
+                        }
+                    }
+                }
             }
+
+            if (!hasDiffs)
+            {
+                Console.WriteLine("No changes detected.");
+            }
+
+            return hasDiffs;
         }
     }
 }
