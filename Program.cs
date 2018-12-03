@@ -26,6 +26,7 @@ namespace HostsFileEditor
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Net;
     using System.Security.Principal;
 
     class Program
@@ -64,7 +65,20 @@ namespace HostsFileEditor
                 {
                     while (i < args.Length - 2)
                     {
-                        current.Add(args[i + 1] + " " + args[i + 2]);
+                        var ip = args[i + 1];
+                        var host = args[i + 2];
+
+                        if (!IPAddress.TryParse(ip, out var _))
+                        {
+                            Console.WriteLine($@"Bad IP address {ip}.");
+                            Usage();
+                            return;
+                        }
+                        else
+                        {
+                            current.Add(ip + " " + host);
+                        }
+
                         i += 2;
                     }
 
