@@ -68,7 +68,7 @@ namespace HostsFileEditor
                         var ip = args[i + 1];
                         var host = args[i + 2];
 
-                        if (!IPAddress.TryParse(ip, out var _))
+                        if (!IPAddress.TryParse(ip, out _))
                         {
                             Console.WriteLine($@"Bad IP address {ip}.");
                             Usage();
