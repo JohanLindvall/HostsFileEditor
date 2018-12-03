@@ -1,3 +1,4 @@
 build:
   project: HostsFileEditor.sln
-  image: Visual Studio 2017
+
+image: Visual Studio 2017
