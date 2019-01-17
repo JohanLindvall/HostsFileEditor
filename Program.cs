@@ -76,7 +76,12 @@ namespace HostsFileEditor
                         }
                         else
                         {
-                            current.Add(ip + " " + host);
+                            var line = ip + " " + host;
+
+                            if (!current.Contains(line))
+                            {
+                                current.Add(line);
+                            }
                         }
 
                         i += 2;
